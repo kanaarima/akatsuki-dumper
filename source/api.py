@@ -127,6 +127,13 @@ def get(url):
 def get_leaderboard(mode=0, relax=0) -> List[Tuple[User, ChosenMode]]:
     res = list()
     page = 1
+    country_rank = {}
+    rank = 0
+    def get_country_rank(country):
+        if country not in country_rank:
+            country_rank[country] = 0
+        country_rank[country] += 1
+        return country_rank[country]
     while True:
         print(f"Crawling page {page} (current users found: {len(res)})")
         req = get(f"https://akatsuki.gg/api/v1/leaderboard?mode={mode}&p={page}&l=500&rx={relax}&sort=magic")
@@ -135,11 +142,14 @@ def get_leaderboard(mode=0, relax=0) -> List[Tuple[User, ChosenMode]]:
         if not req['users']:
             break
         for user in req['users']:
+            rank+=1
             chosen_mode = user['chosen_mode']
             del user['chosen_mode']
             user_dict = initialise_dict(user, User)
             chosen_mode_dict = initialise_dict(chosen_mode, ChosenMode)
-            if non_zero_dict(chosen_mode_dict, ignore_keys=["level"]):
+            chosen_mode_dict['global_leaderboard_rank'] = rank
+            chosen_mode_dict['country_leaderboard_rank'] = get_country_rank(user_dict['country'])
+            if non_zero_dict(chosen_mode_dict, ignore_keys=["level", "global_leaderboard_rank", "country_leaderboard_rank"]):
                 res.append((user_dict, chosen_mode_dict))
             else:
                 print("Found empty user, breaking")
@@ -167,7 +177,7 @@ def get_user_pinned(user_id: int, mode=0, relax=0) -> List[Score]:
         page+=1
     return res
 
-def get_user_most_played(user_id: int, mode=0, relax=0) -> List[Score]:
+def get_user_most_played(user_id: int, mode=0, relax=0) -> List[MostPlayedMap]:
     res = list()
     page = 1
     while True:
